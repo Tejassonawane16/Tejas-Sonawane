@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  HELP_SEEKER
+  ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+}
+
+enum PreferredPaymentMethod {
+  CARD
+  PAYPAL
+  BANK_TRANSFER
+}
+
+model User {
+  id                      String                    @id @default(cuid())
+  email                   String                    @unique
+  passwordHash            String
+  role                    UserRole
+  verificationStatus      VerificationStatus        @default(UNVERIFIED)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  emailVerificationTokens EmailVerificationToken[]
+  helpSeekerProfile       HelpSeekerProfile?
+  studentProfile          StudentProfile?
+  sessions                Session[]
+}
+
+model HelpSeekerProfile {
+  id                      String                   @id @default(cuid())
+  userId                  String                   @unique
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName                String
+  phone                   String
+  preferredPaymentMethod  PreferredPaymentMethod
+  addresses               Address[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+}
+
+model Address {
+  id                  String            @id @default(cuid())
+  helpSeekerProfileId String
+  helpSeekerProfile   HelpSeekerProfile @relation(fields: [helpSeekerProfileId], references: [id], onDelete: Cascade)
+  addressLine         String
+  isDefault           Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([helpSeekerProfileId])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenDigest String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenDigest String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tokenDigest])
+  @@index([userId])
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model StudentProfile {
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills    StudentSkill[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Skill {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  slug      String         @unique
+  category  String
+  isActive  Boolean        @default(true)
+  students  StudentSkill[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model StudentSkill {
+  id                     String           @id @default(cuid())
+  studentProfileId       String
+  studentProfile         StudentProfile   @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  skillId                String
+  skill                  Skill            @relation(fields: [skillId], references: [id], onDelete: Restrict)
+  experienceLevel        ExperienceLevel
+  description            String?
+  certificationReference String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@unique([studentProfileId, skillId])
+  @@index([studentProfileId])
+  @@index([skillId])
+}
